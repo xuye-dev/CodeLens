@@ -20,8 +20,8 @@ use tracing::info;
 #[derive(Parser, Debug)]
 #[command(name = "codelens", version, about = "本地代码上下文检索 MCP Server")]
 struct Cli {
-    /// 项目路径（要扫描和索引的目录）
-    #[arg(short, long)]
+    /// 项目路径（要扫描和索引的目录，默认为当前工作目录）
+    #[arg(short, long, default_value = ".")]
     path: String,
 }
 

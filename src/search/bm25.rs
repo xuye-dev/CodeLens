@@ -134,10 +134,42 @@ impl Bm25Engine {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // 截取 top-N
-        scored.truncate(limit);
+        // 去重：父子代码块重叠时只保留更具体的（行范围被包含的保留子块）
+        let mut deduped: Vec<SearchResult> = Vec::new();
+        for result in scored {
+            let dominated = deduped.iter().any(|existing| {
+                existing.block.file_path == result.block.file_path
+                    && existing.block.start_line <= result.block.start_line
+                    && existing.block.end_line >= result.block.end_line
+            });
+            if dominated {
+                continue;
+            }
+            // 如果新结果包含了已有结果，替换掉被包含的
+            deduped.retain(|existing| {
+                !(existing.block.file_path == result.block.file_path
+                    && result.block.start_line <= existing.block.start_line
+                    && result.block.end_line >= existing.block.end_line)
+            });
+            deduped.push(result);
+        }
 
-        scored
+        // 同文件最多保留 3 个结果，保证结果多样性
+        let max_per_file: usize = 3;
+        let mut file_counts: HashMap<&str, usize> = HashMap::new();
+        let mut diverse: Vec<SearchResult> = Vec::new();
+        for result in &deduped {
+            let count = file_counts.entry(&result.block.file_path).or_insert(0);
+            if *count < max_per_file {
+                *count += 1;
+                diverse.push(result.clone());
+            }
+        }
+
+        // 截取 top-N
+        diverse.truncate(limit);
+
+        diverse
     }
 }
 
@@ -210,9 +242,9 @@ fn document_contains(block: &CodeBlock, term: &str) -> bool {
     false
 }
 
-/// 计算词项在文档中的出现次数
+/// 计算词项在文档中的出现次数（精确匹配 token）
 fn term_frequency(block: &CodeBlock, term: &str) -> usize {
     let tokens = document_tokens(block);
     let term_lower = term.to_lowercase();
-    tokens.iter().filter(|t| t.contains(&term_lower)).count()
+    tokens.iter().filter(|t| **t == term_lower).count()
 }

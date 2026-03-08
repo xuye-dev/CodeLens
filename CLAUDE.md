@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-CodeLens 是一个用 Rust 编写的**通用本地代码上下文检索 MCP Server**。通过 stdio 提供 `search` 工具，供 AI 编程助手（如 Claude Code）查询代码语义，代码不出本地。启动时通过 `--path` 指定目标项目目录，支持任意代码仓库。MVP 仅适配 Linux。
+CodeLens 是一个用 Rust 编写的**通用本地代码上下文检索 MCP Server**。通过 stdio 提供 `search` 工具，供 AI 编程助手（如 Claude Code）查询代码语义，代码不出本地。启动时默认使用当前工作目录，也可通过 `--path` 手动指定目标项目目录，支持任意代码仓库。MVP 仅适配 Linux。
 
 ## 技术栈
 
@@ -48,7 +48,8 @@ pub trait Parser {
 ```bash
 cargo build                        # 调试构建
 cargo build --release              # 发布构建（单一可执行文件）
-cargo run -- --path /your/project  # 启动 MCP Server，指定目标项目路径
+cargo run                          # 启动 MCP Server（默认使用当前目录）
+cargo run -- --path /your/project  # 启动 MCP Server，手动指定目标项目路径
 cargo test                         # 运行全部测试
 cargo test test_name               # 运行单个测试
 cargo clippy                       # 代码检查
@@ -92,8 +93,9 @@ src/
 ## 关键设计决策
 
 - **通用多语言架构**：Parser trait 接口 + 扩展名分发，新增语言不影响检索和索引模块。
-- **单文件分发**：编译为单个可执行文件，在 MCP 客户端配置中通过 `--path` 指定目标目录即可使用。
+- **单文件分发**：编译为单个可执行文件，默认使用当前工作目录，也可通过 `--path` 手动指定目标目录。
 - **纯内存索引（MVP）**：无磁盘持久化；启动时全量扫描，运行中通过文件监听增量更新。
 - **仅提供 search 工具**：不提供文件摘要或目录结构工具，AI 可直接用 Read/find 查看。
 - **search 参数**：`query`（关键词）、`lang`（可选语言筛选，支持逗号分隔多语言如 `"vue,javascript,typescript"`）、`limit`（默认 10）、`context`（完整代码块或匹配行 ±N 行）、`path`（可选目录筛选）。
 - **BM25 类型权重**：Class/Interface/Enum ×2.0 > Method/Constructor ×1.3 > XmlNode ×1.2 > XmlNamespace ×1.1 > Field ×1.0 > Import ×0.4，确保搜索结果以核心定义为主。
+- **搜索结果去重**：父子代码块行范围重叠时只保留更具体的子块；同一文件最多返回 3 个结果，保证来源多样性；token 匹配使用精确匹配而非子串匹配。

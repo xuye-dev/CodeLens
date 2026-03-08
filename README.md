@@ -4,7 +4,7 @@ A local code context retrieval MCP Server written in Rust. It provides a `search
 
 ## Features
 
-- **BM25 keyword search** — Relevance-ranked code retrieval with type-aware boosting (classes > methods > imports)
+- **BM25 keyword search** — Relevance-ranked code retrieval with type-aware boosting, deduplication (parent-child overlap removal + per-file diversity limit)
 - **Java support** — Parses classes, methods, constructors, fields, annotations, and imports via tree-sitter
 - **JavaScript/TypeScript support** — Parses classes, interfaces (TS), enums (TS), functions, methods, fields, decorators, imports, and exports via tree-sitter
 - **Vue support** — Parses `.vue` Single File Components, extracts `<template>` and `<script>`/`<script setup>` blocks with `lang="ts"` auto-detection
@@ -26,12 +26,25 @@ The binary is at `target/release/codelens`.
 ### Run
 
 ```bash
-./target/release/codelens --path /your/project
+./target/release/codelens                      # uses current working directory
+./target/release/codelens --path /your/project  # or specify a project path
 ```
 
 ### MCP Client Configuration
 
 Add to your MCP client config (e.g., Claude Code `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "codelens": {
+      "command": "/absolute/path/to/codelens"
+    }
+  }
+}
+```
+
+The server defaults to the current working directory. To specify a different project path:
 
 ```json
 {
@@ -54,6 +67,7 @@ CodeLens exposes a single `search` tool via MCP with the following parameters:
 | `lang` | string | no | null | Language filter, supports comma-separated multi-lang (`"java"`, `"vue"`, `"javascript"`, `"typescript"`, `"xml"`, or `"vue,javascript,typescript"`) |
 | `limit` | uint | no | 10 | Max number of results |
 | `context` | string | no | `"full"` | `"full"` for complete code blocks, or a number N for ±N lines around matches |
+| `path` | string | no | null | Directory filter, only search files under this path (e.g., `"src/api"`) |
 
 ### Example Results
 
