@@ -16,6 +16,9 @@ tree-sitter-java = "0.23"
 # XML 解析（高性能，低内存占用）
 quick-xml = "0.37"
 
+# 统一错误处理
+thiserror = "2"
+
 # 文件监听（通过 inotify 监听文件变化，触发增量更新）
 notify = "7"
 
