@@ -2,7 +2,7 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [未发布]
+## [0.1.1] - 2026-03-08
 
 ### 变更
 
@@ -15,8 +15,9 @@
 
 ### 优化
 
-- BM25 检索引擎增加代码块类型权重加分（Class/Interface/Enum ×1.5 > Method/Constructor ×1.3 > Field/XmlNode ×1.1 > Import ×0.5），类和方法定义优先于 import 语句排序
+- BM25 类型权重重新调优（Class/Interface/Enum ×2.0 > Method/Constructor ×1.3 > XmlNode ×1.2 > XmlNamespace ×1.1 > Field ×1.0 > Import ×0.4），大幅提升类/接口定义在部分名称匹配时的排序优先级
 - XML 解析器新增 `resultMap`、`sql` 定义标签索引，MyBatis Mapper 索引覆盖范围从仅 CRUD 扩展到包含映射定义和 SQL 片段
+- 实现 `context` 参数的行截取模式：传入数字 N 时仅输出匹配行 ±N 行（不连续区间用 `...` 分隔），传入 `"full"` 时输出完整代码块
 
 ## [0.1.0] - 2026-03-08
 

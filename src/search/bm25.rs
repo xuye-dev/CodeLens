@@ -86,13 +86,13 @@ impl Bm25Engine {
                 let kind_boost = match block.kind {
                     crate::models::BlockKind::Class
                     | crate::models::BlockKind::Interface
-                    | crate::models::BlockKind::Enum => 1.5,
+                    | crate::models::BlockKind::Enum => 2.0,
                     crate::models::BlockKind::Method
                     | crate::models::BlockKind::Constructor => 1.3,
-                    crate::models::BlockKind::Field
-                    | crate::models::BlockKind::XmlNode
-                    | crate::models::BlockKind::XmlNamespace => 1.1,
-                    crate::models::BlockKind::Import => 0.5,
+                    crate::models::BlockKind::XmlNode => 1.2,
+                    crate::models::BlockKind::XmlNamespace => 1.1,
+                    crate::models::BlockKind::Field => 1.0,
+                    crate::models::BlockKind::Import => 0.4,
                     _ => 1.0,
                 };
                 score *= kind_boost;

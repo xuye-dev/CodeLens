@@ -71,6 +71,9 @@ impl CodeLensServer {
             )]));
         }
 
+        // 解析 context 参数：数字 N 表示匹配行 ±N 行，"full" 表示完整代码块
+        let context_lines: Option<usize> = params.context.parse::<usize>().ok();
+
         let mut output = String::new();
         for (i, result) in results.iter().enumerate() {
             let block = &result.block;
@@ -96,8 +99,15 @@ impl CodeLensServer {
                 output.push_str(&format!("注解: {}\n", block.annotations.join(", ")));
             }
 
+            // 根据 context 参数决定输出内容
+            let display_content = if let Some(n) = context_lines {
+                extract_context_lines(&block.content, &params.query, n)
+            } else {
+                block.content.clone()
+            };
+
             output.push_str("```\n");
-            output.push_str(&block.content);
+            output.push_str(&display_content);
             output.push_str("\n```\n\n");
         }
 
@@ -128,4 +138,61 @@ impl CodeLensServer {
             tool_router: Self::tool_router(),
         }
     }
+}
+
+/// 从代码内容中提取匹配行 ± N 行的上下文
+fn extract_context_lines(content: &str, query: &str, n: usize) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return content.to_string();
+    }
+
+    let query_lower = query.to_lowercase();
+    let query_terms: Vec<&str> = query_lower.split_whitespace().collect();
+
+    // 找到所有匹配行的索引
+    let mut match_indices: Vec<usize> = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        let line_lower = line.to_lowercase();
+        if query_terms.iter().any(|term| line_lower.contains(term)) {
+            match_indices.push(i);
+        }
+    }
+
+    // 如果没有匹配行，返回完整内容
+    if match_indices.is_empty() {
+        return content.to_string();
+    }
+
+    // 合并所有匹配行的 ±N 行范围
+    let mut included = vec![false; lines.len()];
+    for &idx in &match_indices {
+        let start = idx.saturating_sub(n);
+        let end = (idx + n + 1).min(lines.len());
+        for item in included.iter_mut().take(end).skip(start) {
+            *item = true;
+        }
+    }
+
+    // 输出连续区间，不连续处用 "..." 分隔
+    let mut result = String::new();
+    let mut in_block = false;
+    for (i, line) in lines.iter().enumerate() {
+        if included[i] {
+            if !in_block && !result.is_empty() {
+                result.push_str("  ...\n");
+            }
+            result.push_str(line);
+            result.push('\n');
+            in_block = true;
+        } else {
+            in_block = false;
+        }
+    }
+
+    // 移除末尾多余换行
+    if result.ends_with('\n') {
+        result.pop();
+    }
+    result
 }
