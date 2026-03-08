@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: codelens-linux-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: codelens-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: codelens-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: codelens-windows-x86_64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: mv target/${{ matrix.target }}/release/codelens ${{ matrix.artifact }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: mv target/${{ matrix.target }}/release/codelens.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          # 提取当前 tag 对应的 changelog 内容
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # 提取两个 ## 之间的内容
+          BODY=$(awk "/^## \\[${TAG}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          # 写入文件供后续步骤使用
+          echo "$BODY" > release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: artifacts/*
+          generate_release_notes: false
