@@ -47,7 +47,7 @@ fn default_context() -> String {
 impl CodeLensServer {
     #[tool(
         name = "search",
-        description = "搜索代码 — 根据关键词搜索匹配的代码片段,返回文件路径、行号、上下文代码,支持按语言筛选"
+        description = "搜索代码 — 根据关键词搜索匹配的代码片段,返回文件路径、行号、上下文代码,支持按语言筛选。基于 BM25 关键词匹配(非语义搜索),请使用精确的类名、方法名、变量名等代码标识符作为关键词,不支持自然语言描述。支持文件类型: Java, JavaScript, TypeScript, Vue, XML"
     )]
     async fn search(&self, params: Parameters<SearchParams>) -> Result<CallToolResult, McpError> {
         let params = params.0;
@@ -134,7 +134,7 @@ impl ServerHandler for CodeLensServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("codelens", env!("CARGO_PKG_VERSION")))
-            .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具搜索代码片段。")
+            .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具按关键词检索代码片段（BM25 关键词匹配，非语义搜索）。支持的文件类型：Java、JavaScript、TypeScript、Vue、XML。不索引 Markdown 等文档文件，文档请用 Read/Grep 工具直接读取。")
             .with_protocol_version(ProtocolVersion::LATEST)
     }
 }

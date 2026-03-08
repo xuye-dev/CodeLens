@@ -1,6 +1,6 @@
 [package]
 name = "codelens"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "本地代码上下文检索 MCP Server"
 license = "MIT"

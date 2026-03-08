@@ -2,6 +2,13 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.3.2] - 2026-03-08
+
+### 优化
+
+- 优化 MCP 工具描述，明确标注检索方式为 BM25 关键词匹配（非语义搜索），引导 AI 助手使用精确的类名、方法名、变量名等代码标识符进行搜索
+- 优化 MCP Server 指令说明，列出支持的文件类型（Java、JavaScript、TypeScript、Vue、XML），并说明不索引 Markdown 等文档文件，建议使用 Read/Grep 工具直接读取文档
+
 ## [0.3.1] - 2026-03-08
 
 ### 修复
