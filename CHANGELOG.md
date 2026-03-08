@@ -2,6 +2,15 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.0] - 2026-03-08
+
+### 新增
+
+- 新增 JavaScript/TypeScript 解析器（`src/parser/js.rs`），支持 `.js`/`.jsx`/`.ts`/`.tsx` 文件
+- 提取 class、interface（TS）、enum（TS）、function、method、field、import、export 代码块
+- 使用 tree-sitter-javascript 0.23 + tree-sitter-typescript 0.23 进行语法解析
+- 支持装饰器（decorators）提取、箭头函数赋值识别、export 语句内部声明展开
+
 ## [0.1.1] - 2026-03-08
 
 ### 变更

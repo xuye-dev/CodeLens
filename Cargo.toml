@@ -1,6 +1,6 @@
 [package]
 name = "codelens"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "本地代码上下文检索 MCP Server"
 license = "MIT"
@@ -15,6 +15,8 @@ schemars = "1"
 # 代码解析（将源码转为语法树，精确提取类/方法/注解）
 tree-sitter = "0.24"
 tree-sitter-java = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-typescript = "0.23"
 
 # XML 解析（高性能，低内存占用）
 quick-xml = "0.37"

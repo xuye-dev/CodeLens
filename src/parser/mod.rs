@@ -1,4 +1,5 @@
 pub mod java;
+pub mod js;
 pub mod xml;
 
 use crate::error::Result;
@@ -28,6 +29,7 @@ pub fn get_parser_for_file(file_path: &Path, parsers: &[Box<dyn Parser>]) -> Opt
 pub fn create_parsers() -> Vec<Box<dyn Parser>> {
     vec![
         Box::new(java::JavaParser::new()),
+        Box::new(js::JsParser::new()),
         Box::new(xml::XmlParser::new()),
     ]
 }

@@ -26,6 +26,7 @@ CodeLens 是一个用 Rust 编写的**通用本地代码上下文检索 MCP Serv
 | 语言 | 解析库 | 提取内容 |
 |---|---|---|
 | Java | tree-sitter-java 0.23 | 类、接口、枚举、方法、构造函数、字段、注解、import、继承关系 |
+| JavaScript/TypeScript | tree-sitter-javascript 0.23 + tree-sitter-typescript 0.23 | 类、接口（TS）、枚举（TS）、函数、方法、字段、装饰器、import、export |
 | XML | quick-xml 0.37 | MyBatis Mapper（namespace/CRUD/resultMap/sql）、通用 XML 配置 |
 
 ### 扩展新语言

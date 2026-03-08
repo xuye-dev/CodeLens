@@ -46,10 +46,7 @@ impl CodeLensServer {
         name = "search",
         description = "搜索代码 — 根据关键词搜索匹配的代码片段，返回文件路径、行号、上下文代码，支持按语言筛选"
     )]
-    async fn search(
-        &self,
-        params: Parameters<SearchParams>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn search(&self, params: Parameters<SearchParams>) -> Result<CallToolResult, McpError> {
         let params = params.0;
 
         let store = self
@@ -118,14 +115,10 @@ impl CodeLensServer {
 #[tool_handler]
 impl ServerHandler for CodeLensServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
-            ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
-        )
-        .with_server_info(Implementation::new("codelens", env!("CARGO_PKG_VERSION")))
-        .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具搜索代码片段。")
-        .with_protocol_version(ProtocolVersion::LATEST)
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new("codelens", env!("CARGO_PKG_VERSION")))
+            .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具搜索代码片段。")
+            .with_protocol_version(ProtocolVersion::LATEST)
     }
 }
 

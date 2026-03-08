@@ -73,13 +73,28 @@ impl Bm25Engine {
                     score += idf * numerator / denominator;
                 }
 
-                // 名称匹配加分
+                // 名称匹配加分 — 区分定义类型和引用类型
                 let name_lower = block.name.to_lowercase();
                 let query_lower = query.to_lowercase();
+                let is_definition = matches!(
+                    block.kind,
+                    crate::models::BlockKind::Class
+                        | crate::models::BlockKind::Interface
+                        | crate::models::BlockKind::Enum
+                );
                 if name_lower == query_lower {
-                    score *= 3.0;
+                    score *= if is_definition {
+                        5.0
+                    } else if matches!(
+                        block.kind,
+                        crate::models::BlockKind::Method | crate::models::BlockKind::Constructor
+                    ) {
+                        3.0
+                    } else {
+                        2.0
+                    };
                 } else if name_lower.contains(&query_lower) {
-                    score *= 1.5;
+                    score *= if is_definition { 2.5 } else { 1.5 };
                 }
 
                 // 代码块类型权重：定义类 > 引用类
@@ -87,8 +102,7 @@ impl Bm25Engine {
                     crate::models::BlockKind::Class
                     | crate::models::BlockKind::Interface
                     | crate::models::BlockKind::Enum => 2.0,
-                    crate::models::BlockKind::Method
-                    | crate::models::BlockKind::Constructor => 1.3,
+                    crate::models::BlockKind::Method | crate::models::BlockKind::Constructor => 1.3,
                     crate::models::BlockKind::XmlNode => 1.2,
                     crate::models::BlockKind::XmlNamespace => 1.1,
                     crate::models::BlockKind::Field => 1.0,
