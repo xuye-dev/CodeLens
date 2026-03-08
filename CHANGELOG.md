@@ -13,6 +13,11 @@
 - 使用 `ServerInfo::new()` builder 方法链构造服务器信息，替代直接结构体构造
 - 协议版本从 `ProtocolVersion::V_2024_11_05` 升级为 `ProtocolVersion::LATEST`
 
+### 优化
+
+- BM25 检索引擎增加代码块类型权重加分（Class/Interface/Enum ×1.5 > Method/Constructor ×1.3 > Field/XmlNode ×1.1 > Import ×0.5），类和方法定义优先于 import 语句排序
+- XML 解析器新增 `resultMap`、`sql` 定义标签索引，MyBatis Mapper 索引覆盖范围从仅 CRUD 扩展到包含映射定义和 SQL 片段
+
 ## [0.1.0] - 2026-03-08
 
 ### 新增

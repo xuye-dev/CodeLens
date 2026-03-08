@@ -73,7 +73,7 @@ impl Bm25Engine {
                     score += idf * numerator / denominator;
                 }
 
-                // 名称精确匹配加分
+                // 名称匹配加分
                 let name_lower = block.name.to_lowercase();
                 let query_lower = query.to_lowercase();
                 if name_lower == query_lower {
@@ -81,6 +81,21 @@ impl Bm25Engine {
                 } else if name_lower.contains(&query_lower) {
                     score *= 1.5;
                 }
+
+                // 代码块类型权重：定义类 > 引用类
+                let kind_boost = match block.kind {
+                    crate::models::BlockKind::Class
+                    | crate::models::BlockKind::Interface
+                    | crate::models::BlockKind::Enum => 1.5,
+                    crate::models::BlockKind::Method
+                    | crate::models::BlockKind::Constructor => 1.3,
+                    crate::models::BlockKind::Field
+                    | crate::models::BlockKind::XmlNode
+                    | crate::models::BlockKind::XmlNamespace => 1.1,
+                    crate::models::BlockKind::Import => 0.5,
+                    _ => 1.0,
+                };
+                score *= kind_boost;
 
                 if score > 0.0 {
                     Some(SearchResult {

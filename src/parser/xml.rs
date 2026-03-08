@@ -9,6 +9,9 @@ use std::path::Path;
 /// MyBatis SQL 语句类型
 const MYBATIS_SQL_TAGS: &[&str] = &["select", "insert", "update", "delete"];
 
+/// MyBatis 定义类标签（resultMap、sql 片段等）
+const MYBATIS_DEF_TAGS: &[&str] = &["resultMap", "sql"];
+
 /// XML 解析器 — 支持 MyBatis Mapper XML 和通用 XML 配置文件
 pub struct XmlParser;
 
@@ -50,6 +53,12 @@ impl XmlParser {
         let mut current_attrs = String::new();
         let mut current_content = String::new();
         let mut tag_start_line: usize = 0;
+
+        // 定义类标签（resultMap、sql）的跟踪
+        let mut def_tag: Option<String> = None;
+        let mut def_id = String::new();
+        let mut def_attrs = String::new();
+        let mut def_start_line: usize = 0;
 
         loop {
             match reader.read_event() {
@@ -96,6 +105,22 @@ impl XmlParser {
                         }
                         current_attrs = attr_parts.join(" ");
                         current_content.clear();
+                    } else if MYBATIS_DEF_TAGS.contains(&tag_name.as_str()) {
+                        def_tag = Some(tag_name.clone());
+                        def_start_line = line;
+                        def_id.clear();
+                        def_attrs.clear();
+
+                        let mut attr_parts = Vec::new();
+                        for attr in e.attributes().flatten() {
+                            let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
+                            let val = String::from_utf8_lossy(&attr.value).to_string();
+                            if key == "id" {
+                                def_id = val.clone();
+                            }
+                            attr_parts.push(format!("{key}=\"{val}\""));
+                        }
+                        def_attrs = attr_parts.join(" ");
                     }
                 }
                 Ok(Event::Text(ref e)) => {
@@ -129,6 +154,27 @@ impl XmlParser {
                         });
 
                         current_tag = None;
+                    } else if def_tag.as_deref() == Some(&tag_name) {
+                        let byte_pos = reader.buffer_position();
+                        let end_line = byte_offset_to_line(source, byte_pos);
+
+                        let raw_content = extract_lines(lines, def_start_line, end_line);
+
+                        blocks.push(CodeBlock {
+                            file_path: file_path.to_string(),
+                            start_line: def_start_line,
+                            end_line,
+                            content: raw_content,
+                            language: "xml".to_string(),
+                            kind: BlockKind::XmlNode,
+                            name: def_id.clone(),
+                            parent: Some(namespace.clone()),
+                            signature: Some(format!("<{tag_name} {}>", def_attrs)),
+                            annotations: Vec::new(),
+                            dependencies: Vec::new(),
+                        });
+
+                        def_tag = None;
                     }
                 }
                 Ok(Event::Eof) => break,

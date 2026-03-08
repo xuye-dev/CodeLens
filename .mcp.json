@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codelens": {
+      "command": "/home/admin/Desktop/CodeLens/target/release/codelens",
+      "args": ["--path", "/home/admin/Desktop/CodeLens"]
+    }
+  }
+}
