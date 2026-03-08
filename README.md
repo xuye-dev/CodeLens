@@ -51,7 +51,7 @@ CodeLens exposes a single `search` tool via MCP with the following parameters:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | yes | — | Search keywords |
-| `lang` | string | no | null | Language filter (`"java"`, `"javascript"`, `"typescript"`, `"vue-template"`, `"xml"`) |
+| `lang` | string | no | null | Language filter, supports comma-separated multi-lang (`"java"`, `"vue"`, `"javascript"`, `"typescript"`, `"xml"`, or `"vue,javascript,typescript"`) |
 | `limit` | uint | no | 10 | Max number of results |
 | `context` | string | no | `"full"` | `"full"` for complete code blocks, or a number N for ±N lines around matches |
 

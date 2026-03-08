@@ -95,5 +95,5 @@ src/
 - **单文件分发**：编译为单个可执行文件，在 MCP 客户端配置中通过 `--path` 指定目标目录即可使用。
 - **纯内存索引（MVP）**：无磁盘持久化；启动时全量扫描，运行中通过文件监听增量更新。
 - **仅提供 search 工具**：不提供文件摘要或目录结构工具，AI 可直接用 Read/find 查看。
-- **search 参数**：`query`（关键词）、`lang`（可选语言筛选）、`limit`（默认 10）、`context`（完整代码块或匹配行 ±N 行）。
+- **search 参数**：`query`（关键词）、`lang`（可选语言筛选，支持逗号分隔多语言如 `"vue,javascript,typescript"`）、`limit`（默认 10）、`context`（完整代码块或匹配行 ±N 行）、`path`（可选目录筛选）。
 - **BM25 类型权重**：Class/Interface/Enum ×2.0 > Method/Constructor ×1.3 > XmlNode ×1.2 > XmlNamespace ×1.1 > Field ×1.0 > Import ×0.4，确保搜索结果以核心定义为主。

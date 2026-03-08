@@ -2,6 +2,17 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.3.1] - 2026-03-08
+
+### 修复
+
+- 修复 Vue 解析器 `language` 字段不统一的 bug（template 为 `"vue-template"`、script 为 `"typescript"`/`"javascript"`），统一设为 `"vue"`，使 `lang=vue` 筛选能正确命中所有 Vue 代码块
+- 移除 Vue 解析器中永远为 true 的无效 guard 条件（`lang_label == "vue"`）
+
+### 新增
+
+- `lang` 参数支持逗号分隔的多语言筛选（如 `"vue,javascript,typescript"`），可一次搜索多种语言的代码块
+
 ## [0.3.0] - 2026-03-08
 
 ### 新增

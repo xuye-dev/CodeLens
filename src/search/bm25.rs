@@ -22,9 +22,13 @@ impl Bm25Engine {
         lang: Option<&str>,
         limit: usize,
     ) -> Vec<SearchResult> {
-        // 过滤语言
+        // 过滤语言（支持逗号分隔的多语言，如 "vue,javascript"）
         let filtered: Vec<&&CodeBlock> = if let Some(lang) = lang {
-            blocks.iter().filter(|b| b.language == lang).collect()
+            let langs: Vec<&str> = lang.split(',').map(|s| s.trim()).collect();
+            blocks
+                .iter()
+                .filter(|b| langs.iter().any(|l| b.language == *l))
+                .collect()
         } else {
             blocks.iter().collect()
         };

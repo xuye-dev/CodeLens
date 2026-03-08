@@ -44,7 +44,7 @@ impl VueParser {
                 start_line: template.start_line,
                 end_line: template.end_line,
                 content: template.content,
-                language: "vue-template".to_string(),
+                language: "vue".to_string(),
                 kind: BlockKind::Other,
                 name: "template".to_string(),
                 parent: None,
@@ -59,7 +59,7 @@ impl VueParser {
             if let Some(script) = self.extract_sfc_block(&source, tag) {
                 let is_ts = script.is_typescript;
                 let is_setup = tag == "script setup";
-                let lang_label = if is_ts { "typescript" } else { "javascript" };
+                let lang_label = "vue";
 
                 // 用 tree-sitter 解析脚本内容
                 let language = if is_ts {
@@ -202,7 +202,7 @@ impl VueParser {
                 }
             }
 
-            "interface_declaration" if lang_label == "typescript" => {
+            "interface_declaration" => {
                 if let Some(block) = self.extract_class(
                     node,
                     source,
@@ -229,7 +229,7 @@ impl VueParser {
                 }
             }
 
-            "enum_declaration" if lang_label == "typescript" => {
+            "enum_declaration" => {
                 if let Some(block) = self.extract_class(
                     node,
                     source,
@@ -571,7 +571,7 @@ impl VueParser {
                         has_declaration = true;
                     }
                 }
-                "interface_declaration" if lang_label == "typescript" => {
+                "interface_declaration" => {
                     if let Some(mut block) = self.extract_class(
                         child,
                         source,
@@ -586,7 +586,7 @@ impl VueParser {
                         has_declaration = true;
                     }
                 }
-                "enum_declaration" if lang_label == "typescript" => {
+                "enum_declaration" => {
                     if let Some(mut block) = self.extract_class(
                         child,
                         source,

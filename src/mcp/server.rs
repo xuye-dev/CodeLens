@@ -21,7 +21,7 @@ pub struct CodeLensServer {
 struct SearchParams {
     /// 搜索关键词
     query: String,
-    /// 可选语言筛选（如 "java"、"xml"）
+    /// 可选语言筛选,支持逗号分隔多语言(如 "java"、"xml"、"vue,javascript,typescript")
     #[serde(default)]
     lang: Option<String>,
     /// 返回结果数量，默认 10
