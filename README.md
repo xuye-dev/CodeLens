@@ -6,6 +6,8 @@ A local code context retrieval MCP Server written in Rust. It provides a `search
 
 - **BM25 keyword search** — Relevance-ranked code retrieval with type-aware boosting (classes > methods > imports)
 - **Java support** — Parses classes, methods, constructors, fields, annotations, and imports via tree-sitter
+- **JavaScript/TypeScript support** — Parses classes, interfaces (TS), enums (TS), functions, methods, fields, decorators, imports, and exports via tree-sitter
+- **Vue support** — Parses `.vue` Single File Components, extracts `<template>` and `<script>`/`<script setup>` blocks with `lang="ts"` auto-detection
 - **XML support** — Parses MyBatis Mapper XML (namespace, select/insert/update/delete, resultMap, sql fragments) and generic XML configs
 - **Live indexing** — Full scan on startup + incremental updates via filesystem watcher (inotify)
 - **Single binary** — Compiles to one executable, just point your MCP client config at it
@@ -49,7 +51,7 @@ CodeLens exposes a single `search` tool via MCP with the following parameters:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | yes | — | Search keywords |
-| `lang` | string | no | null | Language filter (`"java"`, `"xml"`) |
+| `lang` | string | no | null | Language filter (`"java"`, `"javascript"`, `"typescript"`, `"vue-template"`, `"xml"`) |
 | `limit` | uint | no | 10 | Max number of results |
 | `context` | string | no | `"full"` | `"full"` for complete code blocks, or a number N for ±N lines around matches |
 
@@ -82,7 +84,7 @@ src/
 |------------|---------|---------|
 | Rust | 2021 edition | Language |
 | rmcp | 1.1 | MCP protocol SDK (JSON-RPC + stdio) |
-| tree-sitter | 0.24 | Source code parsing (AST) |
+| tree-sitter | 0.24 | Source code parsing (AST for Java, JS/TS, Vue) |
 | quick-xml | 0.37 | XML parsing (MyBatis Mapper, etc.) |
 | notify | 7 | Filesystem watcher (inotify) |
 | tokio | 1 | Async runtime |

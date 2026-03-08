@@ -1,5 +1,6 @@
 pub mod java;
 pub mod js;
+pub mod vue;
 pub mod xml;
 
 use crate::error::Result;
@@ -30,6 +31,7 @@ pub fn create_parsers() -> Vec<Box<dyn Parser>> {
     vec![
         Box::new(java::JavaParser::new()),
         Box::new(js::JsParser::new()),
+        Box::new(vue::VueParser::new()),
         Box::new(xml::XmlParser::new()),
     ]
 }

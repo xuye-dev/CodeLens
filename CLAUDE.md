@@ -27,6 +27,7 @@ CodeLens 是一个用 Rust 编写的**通用本地代码上下文检索 MCP Serv
 |---|---|---|
 | Java | tree-sitter-java 0.23 | 类、接口、枚举、方法、构造函数、字段、注解、import、继承关系 |
 | JavaScript/TypeScript | tree-sitter-javascript 0.23 + tree-sitter-typescript 0.23 | 类、接口（TS）、枚举（TS）、函数、方法、字段、装饰器、import、export |
+| Vue | tree-sitter-javascript 0.23 + tree-sitter-typescript 0.23 | SFC template 区块、script/script setup 中的 JS/TS 代码（复用 JS/TS 解析器）、Vue 编译器宏（defineProps/defineEmits/defineExpose/defineSlots） |
 | XML | quick-xml 0.37 | MyBatis Mapper（namespace/CRUD/resultMap/sql）、通用 XML 配置 |
 
 ### 扩展新语言
@@ -63,6 +64,8 @@ src/
 ├── parser/     # 多语言解析器（每种语言一个文件，统一 trait 接口）
 │   ├── mod.rs  #   Parser trait 定义 + 扩展名分发
 │   ├── java.rs #   Java 解析器（tree-sitter）
+│   ├── js.rs   #   JavaScript/TypeScript 解析器（tree-sitter）
+│   ├── vue.rs  #   Vue SFC 解析器（复用 JS/TS tree-sitter）
 │   └── xml.rs  #   XML 解析器（quick-xml）
 ├── search/     # 检索引擎（BM25 关键词排序 + 类型权重）
 ├── indexer/    # 索引管理（内存存储 + 文件监听增量更新）

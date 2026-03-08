@@ -413,14 +413,18 @@ impl JsParser {
     ) {
         let mut has_declaration = false;
         let mut cursor = node.walk();
+        let export_start_line = node.start_position().row + 1;
+        let export_content = node_text(node, source);
 
         for child in node.children(&mut cursor) {
             match child.kind() {
                 // export class Foo {}
                 "class_declaration" => {
-                    if let Some(block) =
+                    if let Some(mut block) =
                         self.extract_class(child, source, file_path, ext, BlockKind::Class)
                     {
+                        block.start_line = export_start_line;
+                        block.content = export_content.clone();
                         let class_name = block.name.clone();
                         blocks.push(block);
                         if let Some(body) = child.child_by_field_name("body") {
@@ -438,9 +442,11 @@ impl JsParser {
                 }
                 // export interface Foo {}
                 "interface_declaration" if Self::is_typescript(ext) => {
-                    if let Some(block) =
+                    if let Some(mut block) =
                         self.extract_class(child, source, file_path, ext, BlockKind::Interface)
                     {
+                        block.start_line = export_start_line;
+                        block.content = export_content.clone();
                         let name = block.name.clone();
                         blocks.push(block);
                         if let Some(body) = child.child_by_field_name("body") {
@@ -451,24 +457,29 @@ impl JsParser {
                 }
                 // export enum Foo {}
                 "enum_declaration" if Self::is_typescript(ext) => {
-                    if let Some(block) =
+                    if let Some(mut block) =
                         self.extract_class(child, source, file_path, ext, BlockKind::Enum)
                     {
+                        block.start_line = export_start_line;
+                        block.content = export_content.clone();
                         blocks.push(block);
                         has_declaration = true;
                     }
                 }
                 // export function foo() {}
                 "function_declaration" | "generator_function_declaration" => {
-                    if let Some(block) =
+                    if let Some(mut block) =
                         self.extract_function(child, source, file_path, ext, parent_name)
                     {
+                        block.start_line = export_start_line;
+                        block.content = export_content.clone();
                         blocks.push(block);
                         has_declaration = true;
                     }
                 }
                 // export const foo = ...
                 "lexical_declaration" | "variable_declaration" => {
+                    let before = blocks.len();
                     self.handle_variable_declaration(
                         child,
                         source,
@@ -477,6 +488,11 @@ impl JsParser {
                         blocks,
                         parent_name,
                     );
+                    // 补上 export 前缀
+                    for b in &mut blocks[before..] {
+                        b.start_line = export_start_line;
+                        b.content = export_content.clone();
+                    }
                     has_declaration = true;
                 }
                 _ => {}

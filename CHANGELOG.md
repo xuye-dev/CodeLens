@@ -2,6 +2,17 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.3.0] - 2026-03-08
+
+### 新增
+
+- 新增 Vue 单文件组件（SFC）解析器（`src/parser/vue.rs`），支持 `.vue` 文件
+- 提取 `<template>` 区块作为独立代码块
+- 提取 `<script>` / `<script setup>` 中的 JS/TS 代码，复用 tree-sitter JS/TS 解析
+- 支持 `lang="ts"` 属性自动切换 TypeScript 解析
+- 支持 `<script setup>` 中的 Vue 编译器宏识别（defineProps / defineEmits / defineExpose / defineSlots）
+- 新增 vue-pure-admin 测试项目（Vue 3 + TypeScript + script setup 管理模板）
+
 ## [0.2.0] - 2026-03-08
 
 ### 新增

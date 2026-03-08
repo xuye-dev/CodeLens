@@ -30,6 +30,9 @@ struct SearchParams {
     /// 上下文模式："full"（完整代码块）或数字 N（匹配行 ± N 行）
     #[serde(default = "default_context")]
     context: String,
+    /// 可选目录筛选，仅搜索该目录下的文件（如 "src/api"、"src/components"）
+    #[serde(default)]
+    path: Option<String>,
 }
 
 fn default_limit() -> usize {
@@ -44,7 +47,7 @@ fn default_context() -> String {
 impl CodeLensServer {
     #[tool(
         name = "search",
-        description = "搜索代码 — 根据关键词搜索匹配的代码片段，返回文件路径、行号、上下文代码，支持按语言筛选"
+        description = "搜索代码 — 根据关键词搜索匹配的代码片段,返回文件路径、行号、上下文代码,支持按语言筛选"
     )]
     async fn search(&self, params: Parameters<SearchParams>) -> Result<CallToolResult, McpError> {
         let params = params.0;
@@ -55,9 +58,23 @@ impl CodeLensServer {
             .map_err(|e| McpError::internal_error(format!("索引锁获取失败: {e}"), None))?;
 
         let all_blocks = store.all_blocks();
+
+        // 按目录前缀过滤
+        let filtered: Vec<&crate::models::CodeBlock>;
+        let search_blocks = if let Some(ref path_filter) = params.path {
+            filtered = all_blocks
+                .iter()
+                .filter(|b| b.file_path.contains(path_filter.as_str()))
+                .copied()
+                .collect();
+            &filtered[..]
+        } else {
+            &all_blocks[..]
+        };
+
         let results = self.engine.search(
             &params.query,
-            &all_blocks,
+            search_blocks,
             params.lang.as_deref(),
             params.limit,
         );
