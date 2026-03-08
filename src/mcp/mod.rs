@@ -1,1 +1,1 @@
-// MCP 协议层 — 后续阶段实现
+pub mod server;

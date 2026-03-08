@@ -189,7 +189,9 @@ fn simple_glob_match(pattern: &str, text: &str) -> bool {
 
     if parts.len() == 2 {
         let (prefix, suffix) = (parts[0], parts[1]);
-        return text.starts_with(prefix) && text.ends_with(suffix) && text.len() >= prefix.len() + suffix.len();
+        return text.starts_with(prefix)
+            && text.ends_with(suffix)
+            && text.len() >= prefix.len() + suffix.len();
     }
 
     // 多个 * 的情况，回退到简单检查

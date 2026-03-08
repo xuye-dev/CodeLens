@@ -7,7 +7,10 @@ license = "MIT"
 
 [dependencies]
 # MCP 协议 SDK（处理 JSON-RPC + stdio 通信）
-rmcp = { version = "0.1", features = ["server", "transport-io"] }
+rmcp = { version = "0.1", features = ["server", "transport-io", "macros"] }
+
+# JSON Schema 生成（rmcp 工具参数需要）
+schemars = "0.8"
 
 # 代码解析（将源码转为语法树，精确提取类/方法/注解）
 tree-sitter = "0.24"

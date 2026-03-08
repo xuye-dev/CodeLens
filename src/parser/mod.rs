@@ -1,3 +1,6 @@
+pub mod java;
+pub mod xml;
+
 use crate::error::Result;
 use crate::models::CodeBlock;
 use std::path::Path;
@@ -19,4 +22,12 @@ pub fn get_parser_for_file(file_path: &Path, parsers: &[Box<dyn Parser>]) -> Opt
     parsers
         .iter()
         .position(|p| p.supported_extensions().contains(&ext))
+}
+
+/// 创建所有内置解析器
+pub fn create_parsers() -> Vec<Box<dyn Parser>> {
+    vec![
+        Box::new(java::JavaParser::new()),
+        Box::new(xml::XmlParser::new()),
+    ]
 }

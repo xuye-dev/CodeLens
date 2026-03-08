@@ -184,6 +184,7 @@ dependencies = [
  "notify",
  "quick-xml",
  "rmcp",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",

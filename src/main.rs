@@ -1,10 +1,19 @@
 mod error;
 mod indexer;
+mod mcp;
 mod models;
 mod parser;
 mod scanner;
+mod search;
 
+use crate::indexer::builder::IndexBuilder;
+use crate::indexer::store::IndexStore;
+use crate::indexer::watcher::FileWatcher;
+use crate::mcp::server::CodeLensServer;
 use clap::Parser;
+use rmcp::ServiceExt;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 /// CodeLens — 本地代码上下文检索 MCP Server
@@ -29,17 +38,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 解析命令行参数
     let cli = Cli::parse();
+    let project_path = Path::new(&cli.path);
 
     info!(path = %cli.path, "CodeLens 启动中...");
 
-    // TODO: 后续阶段实现完整启动流程
     // 1. Scanner 扫描文件
-    // 2. Parser 解析代码
-    // 3. Indexer 建立索引
-    // 4. 启动文件监听
-    // 5. 启动 MCP Server
+    let scanner_instance = scanner::Scanner::new(project_path)?;
+    let root = scanner_instance.root().to_path_buf();
 
-    info!("CodeLens 初始化完成，等待后续模块接入");
+    // 2. 创建索引存储和构建器
+    let mut store = IndexStore::new();
+    let builder = IndexBuilder::new();
+
+    // 3. 全量构建索引
+    builder.build(&scanner_instance, &mut store)?;
+
+    // 4. 将 store 和 builder 包装为共享引用
+    let store = Arc::new(Mutex::new(store));
+    let builder = Arc::new(builder);
+
+    // 5. 启动文件监听（增量更新）
+    let _watcher = FileWatcher::start(&root, Arc::clone(&store), Arc::clone(&builder))?;
+
+    info!("索引构建完成，启动 MCP Server...");
+
+    // 6. 启动 MCP Server（通过 stdio 通信）
+    let server = CodeLensServer::new(Arc::clone(&store));
+    let transport = rmcp::transport::io::stdio();
+
+    let server_handle = server.serve(transport).await?;
+    server_handle.waiting().await?;
 
     Ok(())
 }
