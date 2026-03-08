@@ -11,7 +11,7 @@ CodeLens 是一个用 Rust 编写的本地代码上下文检索 MCP Server。通
 | 技术 | 版本 | 用途 |
 |---|---|---|
 | Rust | edition 2021 | 开发语言 |
-| rmcp | 0.1 | MCP 协议 SDK（JSON-RPC + stdio 通信） |
+| rmcp | 1.1 | MCP 协议 SDK（JSON-RPC + stdio 通信） |
 | tree-sitter | 0.24 | 源码解析（语法树） |
 | tree-sitter-java | 0.23 | Java 语法支持 |
 | quick-xml | 0.37 | XML 解析（MyBatis Mapper 等） |

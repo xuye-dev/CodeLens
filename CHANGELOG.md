@@ -2,6 +2,17 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [未发布]
+
+### 变更
+
+- 升级 rmcp 从 0.1 到 1.1（MCP 协议 SDK 大版本更新）
+- 升级 schemars 从 0.8 到 1（匹配 rmcp 1.x 的依赖要求）
+- 使用 `#[tool_router]` + `#[tool_handler]` + `#[tool]` 宏重构 MCP Server，替代手动实现 `call_tool`/`list_tools`
+- 使用 `Parameters<T>` 自动参数提取，替代手动 `serde_json::from_value`
+- 使用 `ServerInfo::new()` builder 方法链构造服务器信息，替代直接结构体构造
+- 协议版本从 `ProtocolVersion::V_2024_11_05` 升级为 `ProtocolVersion::LATEST`
+
 ## [0.1.0] - 2026-03-08
 
 ### 新增
