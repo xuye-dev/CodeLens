@@ -102,10 +102,22 @@ impl VueParser {
             &format!("</{tag}>")
         };
 
-        // 查找开标签位置
-        let open_start = source.find(&open_prefix)?;
-        // 找到开标签结束的 >
-        let open_end = source[open_start..].find('>')? + open_start;
+        // 查找开标签位置，需要处理 <script> vs <script setup> 的歧义
+        let mut search_from = 0;
+        let (open_start, open_end) = loop {
+            let pos = source[search_from..].find(&open_prefix)? + search_from;
+            let end = source[pos..].find('>')? + pos;
+            let open_tag_content = &source[pos..=end];
+
+            if tag == "script" {
+                // 搜索 <script> 时，需要排除 <script setup>
+                if open_tag_content.contains("setup") {
+                    search_from = end + 1;
+                    continue;
+                }
+            }
+            break (pos, end);
+        };
         let content_start = open_end + 1;
 
         // 检查 lang="ts" 属性
@@ -655,7 +667,7 @@ impl VueParser {
         }
     }
 
-    /// 处理变量声明（提取箭头函数赋值）
+    /// 处理变量声明（提取箭头函数赋值 + Vue 编译器宏赋值）
     fn handle_variable_declaration(
         &self,
         node: Node,
@@ -676,6 +688,27 @@ impl VueParser {
                 Some(v) => v,
                 None => continue,
             };
+
+            // 检查是否是 Vue 编译器宏赋值（如 const emit = defineEmits(...)）
+            if value.kind() == "call_expression" {
+                if let Some(macro_name) = self.detect_vue_macro(value, source) {
+                    let content = node_text(node, source);
+                    blocks.push(CodeBlock {
+                        file_path: file_path.to_string(),
+                        start_line: node.start_position().row + line_offset,
+                        end_line: node.end_position().row + line_offset,
+                        content: content.clone(),
+                        language: lang_label.to_string(),
+                        kind: BlockKind::Other,
+                        name: macro_name,
+                        parent: None,
+                        signature: Some(content.trim().trim_end_matches(';').to_string()),
+                        annotations: Vec::new(),
+                        dependencies: Vec::new(),
+                    });
+                    continue;
+                }
+            }
 
             if value.kind() != "arrow_function" && value.kind() != "function_expression" {
                 continue;
@@ -727,6 +760,24 @@ impl VueParser {
         }
 
         sig
+    }
+
+    /// 检测 call_expression 是否是 Vue 编译器宏调用，返回宏名称
+    fn detect_vue_macro(&self, call_node: Node, source: &str) -> Option<String> {
+        let macros = ["defineProps", "defineEmits", "defineExpose", "defineSlots"];
+        let func = call_node.child_by_field_name("function")?;
+        let func_text = node_text(func, source);
+        // 直接调用：defineEmits(...) 或 withDefaults(defineProps(...), ...)
+        for macro_name in macros {
+            if func_text == macro_name {
+                return Some(macro_name.to_string());
+            }
+        }
+        // withDefaults(defineProps<T>(), { ... })
+        if func_text == "withDefaults" {
+            return Some("defineProps".to_string());
+        }
+        None
     }
 
     /// 处理 <script setup> 中的 Vue 编译器宏（defineProps / defineEmits / defineExpose）
