@@ -89,11 +89,8 @@ impl CodeBlock {
         }
         // 附加代码内容（截取前 500 字符，避免超长）
         text.push('\n');
-        if self.content.len() > 500 {
-            text.push_str(&self.content[..500]);
-        } else {
-            text.push_str(&self.content);
-        }
+        let truncated: String = self.content.chars().take(500).collect();
+        text.push_str(&truncated);
         text
     }
 }

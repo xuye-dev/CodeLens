@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. 初始化 Embedding（可选，仅当 feature 启用时）
     #[cfg(feature = "embedding")]
-    let (embedding_model, embedding_store) = init_embedding(&cli, &store);
+    let (embedding_model, embedding_store) = init_embedding(&cli, &store).await;
 
     // 5. 将 store 和 builder 包装为共享引用
     let store = Arc::new(Mutex::new(store));
@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "embedding")]
-fn init_embedding(
+async fn init_embedding(
     cli: &Cli,
     store: &IndexStore,
 ) -> (
@@ -118,7 +118,7 @@ fn init_embedding(
 
     let model_dir_path = cli.model_dir.as_deref().map(Path::new);
 
-    match embedding::downloader::ensure_model_files(model_dir_path) {
+    match embedding::downloader::ensure_model_files(model_dir_path).await {
         Ok(model_dir) => match EmbeddingModel::load(&model_dir) {
             Ok(model) => {
                 let model = Arc::new(model);

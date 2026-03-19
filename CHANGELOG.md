@@ -2,6 +2,14 @@
 
 本文件记录 CodeLens 项目的所有版本变动。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.4.1] - 2026-03-19
+
+### 修复
+
+- 修复 Embedding 模型下载器在 tokio 异步上下文中使用 `reqwest::blocking` 导致嵌套 runtime panic 的问题，改为 async `reqwest`
+- 修复 `embedding_text()` 截取前 500 字符时按字节截断导致 UTF-8 多字节字符（如中文）被截断 panic 的问题
+- CI 发布：macOS 和 Windows 构建启用 Embedding 语义搜索（此前仅 Linux 启用）
+
 ## [0.3.3] - 2026-03-09
 
 ### 新增

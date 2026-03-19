@@ -14,7 +14,7 @@ const TOKENIZER_FILENAME: &str = "tokenizer.json";
 /// 确保模型文件存在，缺失则自动下载
 ///
 /// 返回模型目录路径（包含 model_quantized.onnx 和 tokenizer.json）。
-pub fn ensure_model_files(model_dir: Option<&Path>) -> Result<PathBuf> {
+pub async fn ensure_model_files(model_dir: Option<&Path>) -> Result<PathBuf> {
     let dir = match model_dir {
         Some(d) => d.to_path_buf(),
         None => default_model_dir()?,
@@ -31,13 +31,13 @@ pub fn ensure_model_files(model_dir: Option<&Path>) -> Result<PathBuf> {
             url = MODEL_URL,
             "正在下载 ONNX 模型（首次运行，约 23MB）..."
         );
-        download_file(MODEL_URL, &model_path)?;
+        download_file(MODEL_URL, &model_path).await?;
         info!("模型下载完成");
     }
 
     if !tokenizer_path.exists() {
         info!(url = TOKENIZER_URL, "正在下载 tokenizer...");
-        download_file(TOKENIZER_URL, &tokenizer_path)?;
+        download_file(TOKENIZER_URL, &tokenizer_path).await?;
         info!("tokenizer 下载完成");
     }
 
@@ -52,8 +52,9 @@ fn default_model_dir() -> Result<PathBuf> {
 }
 
 /// 下载文件到指定路径
-fn download_file(url: &str, dest: &Path) -> Result<()> {
-    let response = reqwest::blocking::get(url)
+async fn download_file(url: &str, dest: &Path) -> Result<()> {
+    let response = reqwest::get(url)
+        .await
         .map_err(|e| CodeLensError::Download(format!("下载失败 {url}: {e}")))?;
 
     if !response.status().is_success() {
@@ -65,6 +66,7 @@ fn download_file(url: &str, dest: &Path) -> Result<()> {
 
     let bytes = response
         .bytes()
+        .await
         .map_err(|e| CodeLensError::Download(format!("读取响应体失败: {e}")))?;
 
     // 写入临时文件再重命名，避免中断导致的损坏文件
