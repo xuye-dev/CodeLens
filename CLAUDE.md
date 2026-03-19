@@ -13,7 +13,9 @@ CodeLens 是一个用 Rust 编写的**通用本地代码上下文检索 MCP Serv
 | **核心** | Rust | edition 2021 | 开发语言 |
 | **核心** | rmcp | 1.1 | MCP 协议 SDK（JSON-RPC + stdio 通信） |
 | **核心** | tokio | 1 | 异步运行时 |
-| **检索** | BM25（自实现） | — | 关键词相关度排序 + 类型权重加分 |
+| **检索** | BM25 + Embedding 混合检索 | — | BM25 关键词排序 + all-MiniLM-L6-v2 语义向量搜索 |
+| **检索** | ort (ONNX Runtime) | 2.0.0-rc.12 | 本地运行 Embedding 模型推理 |
+| **检索** | tokenizers | 0.22 | HuggingFace WordPiece 分词器 |
 | **解析** | tree-sitter | 0.24 | 通用源码解析框架（语法树） |
 | **解析** | quick-xml | 0.37 | XML/配置文件解析 |
 | **索引** | notify | 7 | 文件监听（inotify），增量更新 |
@@ -50,6 +52,8 @@ cargo build                        # 调试构建
 cargo build --release              # 发布构建（单一可执行文件）
 cargo run                          # 启动 MCP Server（默认使用当前目录）
 cargo run -- --path /your/project  # 启动 MCP Server，手动指定目标项目路径
+cargo run -- --no-embedding        # 禁用语义搜索（纯 BM25 模式）
+cargo run -- --model-dir /path     # 指定本地模型目录
 cargo test                         # 运行全部测试
 cargo test test_name               # 运行单个测试
 cargo clippy                       # 代码检查
@@ -68,12 +72,20 @@ src/
 │   ├── js.rs   #   JavaScript/TypeScript 解析器（tree-sitter）
 │   ├── vue.rs  #   Vue SFC 解析器（复用 JS/TS tree-sitter）
 │   └── xml.rs  #   XML 解析器（quick-xml）
-├── search/     # 检索引擎（BM25 关键词排序 + 类型权重）
+├── embedding/  # Embedding 语义搜索模块
+│   ├── mod.rs  #   模块入口
+│   ├── model.rs#   EmbeddingModel（ONNX 推理 + tokenizer）
+│   ├── store.rs#   EmbeddingStore（内存向量存储）
+│   └── downloader.rs # 模型自动下载器
+├── search/     # 检索引擎（BM25 + Embedding 混合检索）
+│   ├── bm25.rs #   BM25 关键词搜索引擎
+│   ├── embedding.rs # Embedding 向量搜索引擎
+│   └── hybrid.rs #  HybridEngine（混合评分 + 去重 + 多样性）
 ├── indexer/    # 索引管理（内存存储 + 文件监听增量更新）
 └── scanner/    # 文件扫描（.gitignore 解析 + 内置忽略规则）
 ```
 
-**数据流：** Scanner 发现文件 → Parser 按扩展名分发提取结构化代码块 → Indexer 存入内存 → Search 通过 BM25 排序 → MCP Server 经 stdio 返回结果。
+**数据流：** Scanner 发现文件 → Parser 按扩展名分发提取结构化代码块 → Indexer 存入内存 + EmbeddingModel 计算向量存入 EmbeddingStore → HybridEngine 通过 BM25 + 向量相似度混合排序 → MCP Server 经 stdio 返回结果。
 
 ## 编码规范
 
@@ -97,5 +109,7 @@ src/
 - **纯内存索引（MVP）**：无磁盘持久化；启动时全量扫描，运行中通过文件监听增量更新。
 - **仅提供 search 工具**：不提供文件摘要或目录结构工具，AI 可直接用 Read/find 查看。
 - **search 参数**：`query`（关键词）、`lang`（可选语言筛选，支持逗号分隔多语言如 `"vue,javascript,typescript"`）、`limit`（默认 10）、`context`（完整代码块或匹配行 ±N 行）、`path`（可选目录筛选）。
+- **混合检索（Hybrid Search）**：BM25 关键词分数 + Embedding 向量余弦相似度加权合并（各占 50%），兼顾精确标识符匹配和语义理解。
+- **本地 Embedding 模型**：使用 all-MiniLM-L6-v2 INT8 量化模型（~23MB），通过 ONNX Runtime 本地推理，首次运行自动下载到 `~/.cache/codelens/models/`。支持 `--model-dir` 指定路径、`--no-embedding` 禁用。
 - **BM25 类型权重**：Class/Interface/Enum ×2.0 > Method/Constructor ×1.3 > XmlNode ×1.2 > XmlNamespace ×1.1 > Field ×1.0 > Import ×0.4，确保搜索结果以核心定义为主。
 - **搜索结果去重**：父子代码块行范围重叠时只保留更具体的子块；同一文件最多返回 3 个结果，保证来源多样性；token 匹配使用精确匹配而非子串匹配。

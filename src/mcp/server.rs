@@ -1,5 +1,9 @@
+use crate::embedding::model::EmbeddingModel;
+use crate::embedding::store::EmbeddingStore;
 use crate::indexer::store::IndexStore;
 use crate::search::bm25::Bm25Engine;
+use crate::search::embedding::EmbeddingEngine;
+use crate::search::hybrid::HybridEngine;
 use rmcp::handler::server::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -12,7 +16,8 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct CodeLensServer {
     store: Arc<Mutex<IndexStore>>,
-    engine: Arc<Bm25Engine>,
+    embedding_store: Option<Arc<Mutex<EmbeddingStore>>>,
+    engine: Arc<HybridEngine>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -27,10 +32,10 @@ struct SearchParams {
     /// 返回结果数量，默认 10
     #[serde(default = "default_limit")]
     limit: usize,
-    /// 上下文模式："full"（完整代码块）或数字 N（匹配行 ± N 行）
+    /// 上下文模式:"full"(完整代码块)或数字 N(匹配行 ± N 行)
     #[serde(default = "default_context")]
     context: String,
-    /// 可选目录筛选，仅搜索该目录下的文件（如 "src/api"、"src/components"）
+    /// 可选目录筛选，仅搜索该目录下的文件(如 "src/api"、"src/components")
     #[serde(default)]
     path: Option<String>,
 }
@@ -47,7 +52,7 @@ fn default_context() -> String {
 impl CodeLensServer {
     #[tool(
         name = "search",
-        description = "搜索代码 — 根据关键词搜索匹配的代码片段,返回文件路径、行号、上下文代码,支持按语言筛选。基于 BM25 关键词匹配(非语义搜索),请使用精确的类名、方法名、变量名等代码标识符作为关键词,不支持自然语言描述。支持文件类型: Java, JavaScript, TypeScript, Vue, XML"
+        description = "搜索代码 — 根据关键词搜索匹配的代码片段,返回文件路径、行号、上下文代码,支持按语言筛选。基于 BM25 关键词匹配 + 语义向量搜索的混合检索,支持自然语言描述和精确代码标识符。支持文件类型: Java, JavaScript, TypeScript, Vue, XML"
     )]
     async fn search(&self, params: Parameters<SearchParams>) -> Result<CallToolResult, McpError> {
         let params = params.0;
@@ -72,9 +77,14 @@ impl CodeLensServer {
             &all_blocks[..]
         };
 
+        // 获取 embedding store 的锁
+        let emb_store_guard = self.embedding_store.as_ref().and_then(|es| es.lock().ok());
+        let emb_store_ref = emb_store_guard.as_deref();
+
         let results = self.engine.search(
             &params.query,
             search_blocks,
+            emb_store_ref,
             params.lang.as_deref(),
             params.limit,
         );
@@ -134,17 +144,26 @@ impl ServerHandler for CodeLensServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("codelens", env!("CARGO_PKG_VERSION")))
-            .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具按关键词检索代码片段（BM25 关键词匹配，非语义搜索）。支持的文件类型：Java、JavaScript、TypeScript、Vue、XML。不索引 Markdown 等文档文件，文档请用 Read/Grep 工具直接读取。")
+            .with_instructions("CodeLens 是本地代码上下文检索服务。使用 search 工具搜索代码片段，支持 BM25 关键词匹配和语义向量搜索的混合检索。支持自然语言描述和精确代码标识符。支持的文件类型：Java、JavaScript、TypeScript、Vue、XML。")
             .with_protocol_version(ProtocolVersion::LATEST)
     }
 }
 
 impl CodeLensServer {
     /// 创建新的 MCP Server 实例
-    pub fn new(store: Arc<Mutex<IndexStore>>) -> Self {
+    pub fn new(
+        store: Arc<Mutex<IndexStore>>,
+        embedding_model: Option<Arc<EmbeddingModel>>,
+        embedding_store: Option<Arc<Mutex<EmbeddingStore>>>,
+    ) -> Self {
+        let bm25 = Bm25Engine::new();
+        let emb_engine = embedding_model.map(EmbeddingEngine::new);
+        let hybrid = HybridEngine::new(bm25, emb_engine);
+
         Self {
             store,
-            engine: Arc::new(Bm25Engine::new()),
+            embedding_store,
+            engine: Arc::new(hybrid),
             tool_router: Self::tool_router(),
         }
     }

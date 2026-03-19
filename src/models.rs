@@ -54,6 +54,50 @@ pub struct CodeBlock {
     pub dependencies: Vec<String>,
 }
 
+/// 代码块唯一标识 — 用于关联 embedding 向量
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct BlockId {
+    pub file_path: String,
+    pub start_line: usize,
+    pub end_line: usize,
+}
+
+impl CodeBlock {
+    /// 生成该代码块的唯一标识
+    pub fn block_id(&self) -> BlockId {
+        BlockId {
+            file_path: self.file_path.clone(),
+            start_line: self.start_line,
+            end_line: self.end_line,
+        }
+    }
+
+    /// 构造用于 embedding 的结构化文本
+    pub fn embedding_text(&self) -> String {
+        let mut text = format!("{} {:?} {}", self.language, self.kind, self.name);
+        if let Some(ref sig) = self.signature {
+            text.push(' ');
+            text.push_str(sig);
+        }
+        if let Some(ref parent) = self.parent {
+            text.push(' ');
+            text.push_str(parent);
+        }
+        for ann in &self.annotations {
+            text.push(' ');
+            text.push_str(ann);
+        }
+        // 附加代码内容（截取前 500 字符，避免超长）
+        text.push('\n');
+        if self.content.len() > 500 {
+            text.push_str(&self.content[..500]);
+        } else {
+            text.push_str(&self.content);
+        }
+        text
+    }
+}
+
 /// 搜索结果 — 包含匹配的代码块和相关度信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {

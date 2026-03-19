@@ -22,6 +22,14 @@ pub enum CodeLensError {
     /// 文件监听错误
     #[error("文件监听错误: {0}")]
     Watcher(#[from] notify::Error),
+
+    /// Embedding 模型错误（加载、推理）
+    #[error("Embedding 错误: {0}")]
+    Embedding(String),
+
+    /// 模型下载错误
+    #[error("模型下载错误: {0}")]
+    Download(String),
 }
 
 /// 便捷类型别名
