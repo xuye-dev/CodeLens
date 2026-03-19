@@ -20,11 +20,11 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact: codelens-macos-x86_64
-            features: "--features embedding"
+            features: "--no-default-features"
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: codelens-macos-aarch64
-            features: "--features embedding"
+            features: "--no-default-features"
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact: codelens-windows-x86_64.exe
