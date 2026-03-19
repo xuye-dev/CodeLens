@@ -1,19 +1,26 @@
+#[cfg(feature = "embedding")]
 use crate::embedding::store::EmbeddingStore;
-use crate::models::{BlockId, CodeBlock, SearchResult};
+#[cfg(feature = "embedding")]
+use crate::models::BlockId;
+use crate::models::{CodeBlock, SearchResult};
 use crate::search::bm25::Bm25Engine;
+#[cfg(feature = "embedding")]
 use crate::search::embedding::EmbeddingEngine;
 use std::collections::HashMap;
+#[cfg(feature = "embedding")]
 use tracing::warn;
 
 /// 混合搜索引擎 — 组合 BM25 关键词搜索 + Embedding 语义搜索
 pub struct HybridEngine {
     bm25: Bm25Engine,
+    #[cfg(feature = "embedding")]
     embedding: Option<EmbeddingEngine>,
-    /// BM25 权重（默认 0.5，范围 0.0 ~ 1.0）
+    #[cfg(feature = "embedding")]
     alpha: f64,
 }
 
 impl HybridEngine {
+    #[cfg(feature = "embedding")]
     pub fn new(bm25: Bm25Engine, embedding: Option<EmbeddingEngine>) -> Self {
         Self {
             bm25,
@@ -22,7 +29,13 @@ impl HybridEngine {
         }
     }
 
+    #[cfg(not(feature = "embedding"))]
+    pub fn new(bm25: Bm25Engine) -> Self {
+        Self { bm25 }
+    }
+
     /// 混合搜索：BM25 + Embedding 加权合并
+    #[cfg(feature = "embedding")]
     pub fn search(
         &self,
         query: &str,
@@ -84,7 +97,6 @@ impl HybridEngine {
             .collect();
 
         // 5. 合并所有候选的混合分数
-        // 收集所有出现在任一结果中的 block
         let block_map: HashMap<BlockId, &CodeBlock> =
             blocks.iter().map(|b| (b.block_id(), *b)).collect();
 
@@ -103,7 +115,6 @@ impl HybridEngine {
 
                 let final_score = self.alpha * bm25_score + (1.0 - self.alpha) * emb_score;
 
-                // 优先用 BM25 结果中的 SearchResult（保留 context_code）
                 if let Some((_, bm25_result)) = bm25_map.get(id) {
                     Some(SearchResult {
                         block: bm25_result.block.clone(),
@@ -111,7 +122,6 @@ impl HybridEngine {
                         context_code: bm25_result.context_code.clone(),
                     })
                 } else {
-                    // 仅在 embedding 结果中的 block
                     block_map.get(id).map(|block| SearchResult {
                         block: (*block).clone(),
                         score: final_score,
@@ -121,16 +131,32 @@ impl HybridEngine {
             })
             .collect();
 
-        // 6. 按混合分数降序排序
+        // 6. 排序 + 去重 + 多样性限制
         hybrid_results.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // 7. 去重：父子代码块重叠时只保留更具体的
+        Self::dedup_and_diversify(hybrid_results, limit)
+    }
+
+    /// 纯 BM25 模式（无 embedding feature 时）
+    #[cfg(not(feature = "embedding"))]
+    pub fn search(
+        &self,
+        query: &str,
+        blocks: &[&CodeBlock],
+        lang: Option<&str>,
+        limit: usize,
+    ) -> Vec<SearchResult> {
+        self.bm25.search(query, blocks, lang, limit)
+    }
+
+    /// 去重 + 同文件限制 + 截取
+    fn dedup_and_diversify(results: Vec<SearchResult>, limit: usize) -> Vec<SearchResult> {
         let mut deduped: Vec<SearchResult> = Vec::new();
-        for result in hybrid_results {
+        for result in results {
             let dominated = deduped.iter().any(|existing| {
                 existing.block.file_path == result.block.file_path
                     && existing.block.start_line <= result.block.start_line
@@ -147,7 +173,6 @@ impl HybridEngine {
             deduped.push(result);
         }
 
-        // 8. 同文件最多保留 3 个结果
         let max_per_file: usize = 3;
         let mut file_counts: HashMap<&str, usize> = HashMap::new();
         let mut diverse: Vec<SearchResult> = Vec::new();
@@ -159,7 +184,6 @@ impl HybridEngine {
             }
         }
 
-        // 9. 截取 Top-N
         diverse.truncate(limit);
         diverse
     }

@@ -5,6 +5,10 @@ edition = "2021"
 description = "本地代码上下文检索 MCP Server"
 license = "MIT"
 
+[features]
+default = ["embedding"]
+embedding = ["dep:ort", "dep:ndarray", "dep:tokenizers", "dep:reqwest", "dep:dirs"]
+
 [build-dependencies]
 cc = "1"
 
@@ -44,13 +48,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # 异步运行时（rmcp 依赖）
 tokio = { version = "1", features = ["full"] }
 
-# Embedding 语义搜索
-ort = "2.0.0-rc.12"
-ndarray = "0.17"
-tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+# Embedding 语义搜索（可选，通过 feature flag 控制）
+ort = { version = "2.0.0-rc.12", optional = true }
+ndarray = { version = "0.17", optional = true }
+tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
 
 # 模型下载（首次运行自动下载 ONNX 模型）
-reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false, optional = true }
 
 # 用户目录路径（~/.cache/codelens/）
-dirs = "6"
+dirs = { version = "6", optional = true }

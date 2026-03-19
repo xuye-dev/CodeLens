@@ -1,4 +1,6 @@
+#[cfg(feature = "embedding")]
 use crate::embedding::model::EmbeddingModel;
+#[cfg(feature = "embedding")]
 use crate::embedding::store::EmbeddingStore;
 use crate::error::Result;
 use crate::indexer::builder::IndexBuilder;
@@ -16,9 +18,8 @@ pub struct FileWatcher {
 }
 
 impl FileWatcher {
-    /// 启动文件监听，返回 FileWatcher 实例
-    ///
-    /// 当文件发生变化时，自动重新解析并更新索引和 embedding。
+    /// 启动文件监听（带 embedding 支持）
+    #[cfg(feature = "embedding")]
     pub fn start(
         root: &Path,
         store: Arc<Mutex<IndexStore>>,
@@ -28,7 +29,6 @@ impl FileWatcher {
     ) -> Result<Self> {
         let (tx, mut rx) = mpsc::channel::<notify::Result<Event>>(256);
 
-        // 创建文件监听器
         let mut watcher = RecommendedWatcher::new(
             move |res| {
                 let _ = tx.blocking_send(res);
@@ -37,10 +37,8 @@ impl FileWatcher {
         )?;
 
         watcher.watch(root, RecursiveMode::Recursive)?;
-
         info!(path = %root.display(), "文件监听已启动");
 
-        // 在后台任务中处理文件变化事件
         tokio::spawn(async move {
             while let Some(event_result) = rx.recv().await {
                 match event_result {
@@ -62,9 +60,45 @@ impl FileWatcher {
 
         Ok(Self { _watcher: watcher })
     }
+
+    /// 启动文件监听（无 embedding）
+    #[cfg(not(feature = "embedding"))]
+    pub fn start(
+        root: &Path,
+        store: Arc<Mutex<IndexStore>>,
+        builder: Arc<IndexBuilder>,
+    ) -> Result<Self> {
+        let (tx, mut rx) = mpsc::channel::<notify::Result<Event>>(256);
+
+        let mut watcher = RecommendedWatcher::new(
+            move |res| {
+                let _ = tx.blocking_send(res);
+            },
+            Config::default(),
+        )?;
+
+        watcher.watch(root, RecursiveMode::Recursive)?;
+        info!(path = %root.display(), "文件监听已启动");
+
+        tokio::spawn(async move {
+            while let Some(event_result) = rx.recv().await {
+                match event_result {
+                    Ok(event) => {
+                        handle_event_simple(event, &store, &builder);
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "文件监听事件错误");
+                    }
+                }
+            }
+        });
+
+        Ok(Self { _watcher: watcher })
+    }
 }
 
-/// 处理文件变化事件
+/// 处理文件变化事件（带 embedding）
+#[cfg(feature = "embedding")]
 fn handle_event(
     event: Event,
     store: &Arc<Mutex<IndexStore>>,
@@ -91,8 +125,6 @@ fn handle_event(
                         warn!(path = %path.display(), error = %e, "增量更新失败");
                         continue;
                     }
-
-                    // 更新 embedding
                     update_embeddings_for_file(path, &store, embedding_model, embedding_store);
                 }
             }
@@ -103,8 +135,6 @@ fn handle_event(
                 if let Ok(mut store) = store.lock() {
                     store.remove(path);
                 }
-
-                // 移除对应的 embedding
                 if let Some(emb_store) = embedding_store {
                     if let Ok(mut emb_store) = emb_store.lock() {
                         let path_str = path.to_string_lossy();
@@ -117,7 +147,44 @@ fn handle_event(
     }
 }
 
+/// 处理文件变化事件（无 embedding）
+#[cfg(not(feature = "embedding"))]
+fn handle_event_simple(event: Event, store: &Arc<Mutex<IndexStore>>, builder: &Arc<IndexBuilder>) {
+    let paths: Vec<&PathBuf> = event
+        .paths
+        .iter()
+        .filter(|p| is_supported_file(p, builder.parsers()))
+        .collect();
+
+    if paths.is_empty() {
+        return;
+    }
+
+    match event.kind {
+        EventKind::Create(_) | EventKind::Modify(_) => {
+            for path in paths {
+                debug!(path = %path.display(), "文件变更，重新索引");
+                if let Ok(mut store) = store.lock() {
+                    if let Err(e) = builder.reindex_file(path, &mut store) {
+                        warn!(path = %path.display(), error = %e, "增量更新失败");
+                    }
+                }
+            }
+        }
+        EventKind::Remove(_) => {
+            for path in paths {
+                debug!(path = %path.display(), "文件删除，移除索引");
+                if let Ok(mut store) = store.lock() {
+                    store.remove(path);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 /// 为指定文件更新 embedding
+#[cfg(feature = "embedding")]
 fn update_embeddings_for_file(
     path: &Path,
     store: &IndexStore,
@@ -131,12 +198,10 @@ fn update_embeddings_for_file(
 
     let path_str = path.to_string_lossy();
 
-    // 移除旧的 embedding
     if let Ok(mut emb_store) = emb_store_arc.lock() {
         emb_store.remove_by_file(&path_str);
     }
 
-    // 获取该文件的新代码块并计算 embedding
     if let Some(blocks) = store.blocks_for_file(path) {
         if blocks.is_empty() {
             return;

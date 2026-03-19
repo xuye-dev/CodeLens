@@ -1,7 +1,10 @@
+#[cfg(feature = "embedding")]
 use crate::embedding::model::EmbeddingModel;
+#[cfg(feature = "embedding")]
 use crate::embedding::store::EmbeddingStore;
 use crate::indexer::store::IndexStore;
 use crate::search::bm25::Bm25Engine;
+#[cfg(feature = "embedding")]
 use crate::search::embedding::EmbeddingEngine;
 use crate::search::hybrid::HybridEngine;
 use rmcp::handler::server::tool::ToolRouter;
@@ -16,6 +19,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct CodeLensServer {
     store: Arc<Mutex<IndexStore>>,
+    #[cfg(feature = "embedding")]
     embedding_store: Option<Arc<Mutex<EmbeddingStore>>>,
     engine: Arc<HybridEngine>,
     tool_router: ToolRouter<Self>,
@@ -77,14 +81,23 @@ impl CodeLensServer {
             &all_blocks[..]
         };
 
-        // 获取 embedding store 的锁
-        let emb_store_guard = self.embedding_store.as_ref().and_then(|es| es.lock().ok());
-        let emb_store_ref = emb_store_guard.as_deref();
-
+        // 搜索
+        #[cfg(feature = "embedding")]
+        let results = {
+            let emb_store_guard = self.embedding_store.as_ref().and_then(|es| es.lock().ok());
+            let emb_store_ref = emb_store_guard.as_deref();
+            self.engine.search(
+                &params.query,
+                search_blocks,
+                emb_store_ref,
+                params.lang.as_deref(),
+                params.limit,
+            )
+        };
+        #[cfg(not(feature = "embedding"))]
         let results = self.engine.search(
             &params.query,
             search_blocks,
-            emb_store_ref,
             params.lang.as_deref(),
             params.limit,
         );
@@ -123,7 +136,6 @@ impl CodeLensServer {
                 output.push_str(&format!("注解: {}\n", block.annotations.join(", ")));
             }
 
-            // 根据 context 参数决定输出内容
             let display_content = if let Some(n) = context_lines {
                 extract_context_lines(&block.content, &params.query, n)
             } else {
@@ -150,7 +162,8 @@ impl ServerHandler for CodeLensServer {
 }
 
 impl CodeLensServer {
-    /// 创建新的 MCP Server 实例
+    /// 创建新的 MCP Server 实例（带 embedding）
+    #[cfg(feature = "embedding")]
     pub fn new(
         store: Arc<Mutex<IndexStore>>,
         embedding_model: Option<Arc<EmbeddingModel>>,
@@ -167,6 +180,19 @@ impl CodeLensServer {
             tool_router: Self::tool_router(),
         }
     }
+
+    /// 创建新的 MCP Server 实例（纯 BM25）
+    #[cfg(not(feature = "embedding"))]
+    pub fn new(store: Arc<Mutex<IndexStore>>) -> Self {
+        let bm25 = Bm25Engine::new();
+        let hybrid = HybridEngine::new(bm25);
+
+        Self {
+            store,
+            engine: Arc::new(hybrid),
+            tool_router: Self::tool_router(),
+        }
+    }
 }
 
 /// 从代码内容中提取匹配行 ± N 行的上下文
@@ -179,7 +205,6 @@ fn extract_context_lines(content: &str, query: &str, n: usize) -> String {
     let query_lower = query.to_lowercase();
     let query_terms: Vec<&str> = query_lower.split_whitespace().collect();
 
-    // 找到所有匹配行的索引
     let mut match_indices: Vec<usize> = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         let line_lower = line.to_lowercase();
@@ -188,12 +213,10 @@ fn extract_context_lines(content: &str, query: &str, n: usize) -> String {
         }
     }
 
-    // 如果没有匹配行，返回完整内容
     if match_indices.is_empty() {
         return content.to_string();
     }
 
-    // 合并所有匹配行的 ±N 行范围
     let mut included = vec![false; lines.len()];
     for &idx in &match_indices {
         let start = idx.saturating_sub(n);
@@ -203,7 +226,6 @@ fn extract_context_lines(content: &str, query: &str, n: usize) -> String {
         }
     }
 
-    // 输出连续区间，不连续处用 "..." 分隔
     let mut result = String::new();
     let mut in_block = false;
     for (i, line) in lines.iter().enumerate() {
@@ -219,7 +241,6 @@ fn extract_context_lines(content: &str, query: &str, n: usize) -> String {
         }
     }
 
-    // 移除末尾多余换行
     if result.ends_with('\n') {
         result.pop();
     }
